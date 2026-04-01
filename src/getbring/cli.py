@@ -1,7 +1,7 @@
 import click
 from prompt_toolkit import prompt
 from prompt_toolkit.application import Application
-from prompt_toolkit.completion import FuzzyCompleter, WordCompleter
+from prompt_toolkit.completion import Completer, Completion, FuzzyCompleter, WordCompleter
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import Layout
@@ -16,6 +16,50 @@ def _fuzzy_prompt(message: str, words: list[str]) -> str:
     """Prompt with fuzzy autocomplete that shows completions immediately."""
     completer = FuzzyCompleter(WordCompleter(words, sentence=True))
     return prompt(message, completer=completer, complete_while_typing=True).strip()
+
+
+class ArticleCompleter(Completer):
+    """Fuzzy completer that searches across multilingual article names.
+
+    Matches against all locale names (e.g. "Milch", "Milk") but completes
+    with the canonical item ID, showing the matched alias in the display.
+    """
+
+    def __init__(self, articles: dict[str, set[str]]):
+        # articles: {canonical_key: {name1, name2, ...}}
+        self._articles = articles
+
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor.lower()
+        if not text:
+            for key in sorted(self._articles):
+                yield Completion(key, start_position=-len(document.text_before_cursor))
+            return
+
+        seen = set()
+        for key, names in self._articles.items():
+            # check if any name fuzzy-matches the input
+            best_match = None
+            for name in names:
+                if text in name.lower():
+                    # prefer exact key match, then shortest matching name
+                    if name == key:
+                        best_match = key
+                        break
+                    if best_match is None or len(name) < len(best_match):
+                        best_match = name
+
+            if best_match is not None and key not in seen:
+                seen.add(key)
+                display_meta = ""
+                if best_match != key:
+                    display_meta = best_match
+                yield Completion(
+                    key,
+                    start_position=-len(document.text_before_cursor),
+                    display=key,
+                    display_meta=display_meta,
+                )
 
 
 def _select_prompt(message: str, choices: list[str]) -> int:
@@ -205,16 +249,20 @@ def add_item(list_name, items):
         return
 
     # interactive mode — merge catalog articles + list history for autocomplete
-    click.echo(f"Loading item catalog...")
+    click.echo("Loading item catalog...")
     articles = client.get_articles()
     details = client.get_list_details(lst["listUuid"])
-    history_items = {d["itemId"] for d in details}
-    all_items = sorted(set(articles) | history_items)
+    for d in details:
+        item_id = d["itemId"]
+        if item_id not in articles:
+            articles[item_id] = {item_id}
 
-    click.echo(f"Adding items to {lst['name']} (Tab to autocomplete, empty line or Ctrl+D to stop):")
+    completer = ArticleCompleter(articles)
+
+    click.echo(f"Adding items to {lst['name']} (start typing to search, empty line or Ctrl+D to stop):")
     while True:
         try:
-            text = _fuzzy_prompt("  > ", all_items)
+            text = prompt("  > ", completer=completer, complete_while_typing=True).strip()
         except (EOFError, KeyboardInterrupt):
             click.echo("")
             break

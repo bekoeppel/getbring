@@ -117,16 +117,16 @@ def test_resolve_list_not_found():
 # --- get_articles tests ---
 
 def test_get_articles():
-    """Test that get_articles merges both locales and deduplicates."""
+    """Test that get_articles merges both locales with all search names."""
     mock_client_http = MagicMock()
 
     def fake_get(url, **kwargs):
         resp = MagicMock()
         resp.status_code = 200
         if "de-CH" in url:
-            resp.json.return_value = {"Milch": "Milch", "Brot": "Brot", "Cheese": "Cheese"}
+            resp.json.return_value = {"Milch": "Milch", "Brot": "Brot", "Käse": "Käse"}
         elif "en-US" in url:
-            resp.json.return_value = {"Milk": "Milk", "Bread": "Bread", "Cheese": "Cheese"}
+            resp.json.return_value = {"Milch": "Milk", "Brot": "Bread", "Käse": "Cheese"}
         return resp
 
     mock_client_http.get.side_effect = fake_get
@@ -134,11 +134,15 @@ def test_get_articles():
     client = FakeBringClient()
     client._client = mock_client_http
     articles = client.get_articles()
+    # keys are canonical item IDs
     assert "Milch" in articles
-    assert "Milk" in articles
-    assert "Cheese" in articles
-    # should be deduplicated and sorted
-    assert articles == sorted(set(articles))
+    assert "Brot" in articles
+    assert "Käse" in articles
+    # each key maps to a set containing both locale names
+    assert "Milk" in articles["Milch"]
+    assert "Milch" in articles["Milch"]
+    assert "Bread" in articles["Brot"]
+    assert "Cheese" in articles["Käse"]
 
 
 def test_get_articles_one_locale_fails():
@@ -151,7 +155,7 @@ def test_get_articles_one_locale_fails():
             resp.status_code = 404
         else:
             resp.status_code = 200
-            resp.json.return_value = {"Milk": "Milk", "Bread": "Bread"}
+            resp.json.return_value = {"Milch": "Milk", "Brot": "Bread"}
         return resp
 
     mock_client_http.get.side_effect = fake_get
@@ -159,5 +163,6 @@ def test_get_articles_one_locale_fails():
     client = FakeBringClient()
     client._client = mock_client_http
     articles = client.get_articles()
-    assert "Milk" in articles
-    assert "Bread" in articles
+    assert "Milch" in articles
+    assert "Milk" in articles["Milch"]
+    assert "Brot" in articles

@@ -102,17 +102,24 @@ class BringClient:
         )
         resp.raise_for_status()
 
-    def get_articles(self) -> list[str]:
-        """Fetch article names from both de-CH and en-US catalogs."""
-        names = set()
+    def get_articles(self) -> dict[str, set[str]]:
+        """Fetch articles from both de-CH and en-US catalogs.
+
+        Returns a dict mapping canonical item ID (key) to a set of all
+        searchable names (key + display names from all locales).
+        """
+        articles: dict[str, set[str]] = {}
         for locale in ("de-CH", "en-US"):
             resp = self._client.get(
                 f"https://web.getbring.com/locale/articles.{locale}.json",
                 headers=COMMON_HEADERS,
             )
             if resp.status_code == 200:
-                names.update(resp.json().keys())
-        return sorted(names)
+                for key, display in resp.json().items():
+                    if key not in articles:
+                        articles[key] = {key}
+                    articles[key].add(display)
+        return articles
 
     def resolve_list(self, name_or_uuid: str) -> dict:
         """Find a list by name (case-insensitive partial match) or UUID."""
