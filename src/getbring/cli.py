@@ -187,12 +187,13 @@ def list_items(list_name, show_all):
 
 @cli.command("add")
 @click.argument("list_name", required=False)
-@click.argument("item", required=False)
-def add_item(list_name, item):
-    """Add an item to a shopping list.
+@click.argument("items", nargs=-1)
+def add_item(list_name, items):
+    """Add items to a shopping list.
 
     If LIST_NAME is omitted, shows a list picker.
-    If ITEM is omitted, enters interactive mode with autocomplete.
+    If no ITEMs are given, enters interactive mode with autocomplete.
+    Multiple items can be given: getbring add Home Milk Cheese Yoghurt
     """
     _require_auth()
     client = BringClient()
@@ -202,9 +203,10 @@ def add_item(list_name, item):
     else:
         lst = _pick_list(client)
 
-    if item:
-        client.add_item(lst["listUuid"], item)
-        click.echo(f"Added '{item}' to {lst['name']}.")
+    if items:
+        for item in items:
+            client.add_item(lst["listUuid"], item)
+            click.echo(f"Added '{item}' to {lst['name']}.")
         return
 
     # interactive mode — merge catalog articles + list history for autocomplete
