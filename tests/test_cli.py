@@ -144,3 +144,38 @@ def test_add_multiple_items(mock_client_cls, tmp_path, monkeypatch):
     assert "Added 'Cheese'" in result.output
     assert "Added 'Yoghurt'" in result.output
     assert mock_client.add_item.call_count == 3
+
+
+@patch("getbring.cli.BringClient")
+def test_remove_item_direct(mock_client_cls, tmp_path, monkeypatch):
+    monkeypatch.setattr(auth, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(auth, "AUTH_FILE", tmp_path / "auth.json")
+    auth.save_auth({"name": "Beni", "email": "t@t.com", "uuid": "u"})
+
+    mock_client = MagicMock()
+    mock_client.resolve_list.return_value = {"listUuid": "u1", "name": "Home"}
+    mock_client_cls.return_value = mock_client
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["remove", "Home", "Toast"])
+    assert result.exit_code == 0
+    assert "Removed 'Toast'" in result.output
+    mock_client.remove_item.assert_called_once_with("u1", "Toast")
+
+
+@patch("getbring.cli.BringClient")
+def test_remove_multiple_items(mock_client_cls, tmp_path, monkeypatch):
+    monkeypatch.setattr(auth, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(auth, "AUTH_FILE", tmp_path / "auth.json")
+    auth.save_auth({"name": "Beni", "email": "t@t.com", "uuid": "u"})
+
+    mock_client = MagicMock()
+    mock_client.resolve_list.return_value = {"listUuid": "u1", "name": "Home"}
+    mock_client_cls.return_value = mock_client
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["remove", "Home", "Milk", "Cheese"])
+    assert result.exit_code == 0
+    assert "Removed 'Milk'" in result.output
+    assert "Removed 'Cheese'" in result.output
+    assert mock_client.remove_item.call_count == 2

@@ -65,6 +65,21 @@ If you leave out the list name too, you'll first pick a list with arrow keys:
 getbring add
 ```
 
+### Remove items
+
+Remove items you've already bought:
+
+```
+getbring remove Home Toast
+getbring remove Home Milk Cheese
+```
+
+Or interactively pick from the current list:
+
+```
+getbring remove Home
+```
+
 ### Log out
 
 ```

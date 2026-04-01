@@ -186,22 +186,17 @@ def list_items(list_name, show_all):
 
 
 @cli.command("add")
-@click.argument("list_name", required=False)
+@click.argument("list_name")
 @click.argument("items", nargs=-1)
 def add_item(list_name, items):
     """Add items to a shopping list.
 
-    If LIST_NAME is omitted, shows a list picker.
     If no ITEMs are given, enters interactive mode with autocomplete.
     Multiple items can be given: getbring add Home Milk Cheese Yoghurt
     """
     _require_auth()
     client = BringClient()
-
-    if list_name:
-        lst = client.resolve_list(list_name)
-    else:
-        lst = _pick_list(client)
+    lst = client.resolve_list(list_name)
 
     if items:
         for item in items:
@@ -227,5 +222,49 @@ def add_item(list_name, items):
             break
         client.add_item(lst["listUuid"], text)
         click.echo(f"    Added '{text}'")
+
+    click.echo("Done.")
+
+
+@cli.command("remove")
+@click.argument("list_name")
+@click.argument("items", nargs=-1)
+def remove_item(list_name, items):
+    """Remove items from a shopping list (moves them to recently purchased).
+
+    If no ITEMs are given, enters interactive mode with the current list items.
+    Multiple items can be given: getbring remove Home Milk Cheese
+    """
+    _require_auth()
+    client = BringClient()
+    lst = client.resolve_list(list_name)
+
+    if items:
+        for item in items:
+            client.remove_item(lst["listUuid"], item)
+            click.echo(f"Removed '{item}' from {lst['name']}.")
+        return
+
+    # interactive mode — autocomplete from current purchase list
+    data = client.get_list_items(lst["listUuid"])
+    purchase = [item["name"] for item in data.get("purchase", [])]
+    if not purchase:
+        click.echo(f"No items to remove in {lst['name']}.")
+        return
+
+    click.echo(f"Removing items from {lst['name']} (empty line or Ctrl+D to stop):")
+    while True:
+        # refresh available items each iteration
+        try:
+            text = _fuzzy_prompt("  > ", purchase)
+        except (EOFError, KeyboardInterrupt):
+            click.echo("")
+            break
+        if not text:
+            break
+        client.remove_item(lst["listUuid"], text)
+        if text in purchase:
+            purchase.remove(text)
+        click.echo(f"    Removed '{text}'")
 
     click.echo("Done.")

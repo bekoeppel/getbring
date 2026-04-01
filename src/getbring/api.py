@@ -94,6 +94,14 @@ class BringClient:
         )
         resp.raise_for_status()
 
+    def remove_item(self, list_uuid: str, item_name: str) -> None:
+        resp = self._client.put(
+            f"{BASE_URL}/rest/v2/bringlists/{list_uuid}",
+            headers={**self._headers(), "Content-Type": "application/x-www-form-urlencoded"},
+            data={"uuid": list_uuid, "recently": item_name},
+        )
+        resp.raise_for_status()
+
     def get_articles(self) -> list[str]:
         """Fetch article names from both de-CH and en-US catalogs."""
         names = set()
