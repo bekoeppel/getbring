@@ -44,10 +44,11 @@ Add `--all` to also show recently purchased items. If you leave out the list nam
 
 ### Add items
 
-Add a single item directly:
+Add one or more items directly:
 
 ```
 getbring add Home Milk
+getbring add Home Milk Cheese Yoghurt
 ```
 
 Or start interactive mode with autocomplete:
