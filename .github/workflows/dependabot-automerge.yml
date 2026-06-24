@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Wait for CI to pass
         uses: lewagon/wait-on-check-action@v1.8.0
